@@ -4,7 +4,7 @@ const puppeteer = require("puppeteer");
 const URL = "https://blaze.com/pt/games/double";
 const APOSTA_VALOR = "0.1"; // Valor da aposta como string
 
-async function getNumberBet() {
+async function fetchData() {
   const startDate = new Date();
   startDate.setHours(startDate.getHours() - 2);
   const formattedStartDate = startDate.toISOString();
@@ -16,6 +16,12 @@ async function getNumberBet() {
   const res = await fetch(endpoint);
 
   const converted = await res.json();
+
+  return converted;
+}
+
+async function getNumberBet() {
+  const converted = await fetchData();
 
   const values = converted.records.map((x) => {
     if (x.color === "red") return 1;
