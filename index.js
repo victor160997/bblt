@@ -1,10 +1,8 @@
 const puppeteer = require("puppeteer");
-const { Wait } = require("./waitButtonsFunc");
 
 // Configurações do bot
 const URL = "https://blaze.com/pt/games/double";
 const APOSTA_VALOR = "0.1"; // Valor da aposta como string
-const inputSelector = "input.input-field";
 
 async function getNumberBet() {
   const startDate = new Date();
@@ -39,6 +37,7 @@ async function getNumberBet() {
 // Função para realizar a aposta
 async function apostar(page, cor) {
   // Seleciona o campo de input pelo seletor correto
+  const inputSelector = "input.input-field";
   await page.waitForSelector(inputSelector);
 
   // Limpa o campo de input e digita o valor da aposta
@@ -64,15 +63,26 @@ async function apostar(page, cor) {
 
 // Função principal
 async function startBot() {
+  const confirmarSelector = "button.shared-button-custom.css-1apb7jj";
   const browser = await puppeteer.launch({ headless: false });
   const page = await browser.newPage();
   await page.goto(URL);
 
-  await page.waitForSelector(inputSelector);
+  // Aguarde o carregamento da página e faça login se necessário
+  await page.waitForSelector("input.input-field");
 
   // Loop contínuo para fazer apostas a cada rodada
   while (true) {
-    await Wait(page)
+    const inputSelector = "input.input-field";
+    await page.waitForFunction(
+      (selector, notExpectedText) => {
+        const button = document.querySelector(selector);
+        return button && !button.innerText.includes(notExpectedText);
+      },
+      {},
+      confirmarSelector,
+      "Esperando"
+    );
 
     await page.evaluate((inputSelector) => {
       document.querySelector(inputSelector).value = "";
@@ -86,9 +96,9 @@ async function startBot() {
         {
           nome: number === 1 ? "vermelho" : "preto",
           seletor: number === 1 ? "div.red" : "div.black",
-          valor: "0.10",
+          valor: "1",
         },
-        { nome: "branco", seletor: "div.white", valor: "0.10" },
+        { nome: "branco", seletor: "div.white", valor: "0.25" },
       ];
       for (let cor of CORES) {
         await apostar(page, cor);
@@ -99,7 +109,19 @@ async function startBot() {
       document.querySelector(inputSelector).value = "";
     }, inputSelector);
     await new Promise((resolve) => setTimeout(resolve, 100));
-    await Wait(page)
+
+    await page.waitForFunction(
+      (selector, expectedText) => {
+        const button = document.querySelector(selector);
+        return button && button.innerText.includes(expectedText);
+      },
+      {},
+      confirmarSelector,
+      "Esperando"
+    );
+
+    // Aguarde até a próxima rodada (ajuste o tempo conforme necessário)
+    // await new Promise((resolve) => setTimeout(resolve, 20000)); // Espera 60 segundos
   }
 }
 
