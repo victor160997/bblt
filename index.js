@@ -12,7 +12,7 @@ async function fetchData() {
   endDate.setHours(endDate.getHours() + 1);
   const formattedEndDate = endDate.toISOString();
   const endpoint = `https://blaze.ac/api/roulette_games/history?startDate=${formattedStartDate}&endDate=${formattedEndDate}&page=1`;
-  console.log(endpoint)
+  console.log(endpoint);
   const res = await fetch(endpoint);
 
   const converted = await res.json();
@@ -48,7 +48,8 @@ async function apostar(page, cor) {
 
   // Limpa o campo de input e digita o valor da aposta
   await page.evaluate((inputSelector) => {
-    document.querySelector(inputSelector).value = "";
+    if (document.querySelector(inputSelector)?.value)
+      document.querySelector(inputSelector).value = "";
   }, inputSelector);
   await new Promise((resolve) => setTimeout(resolve, 500));
 
@@ -93,7 +94,7 @@ async function startBot() {
     await page.evaluate((inputSelector) => {
       document.querySelector(inputSelector).value = "";
     }, inputSelector);
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     const number = await getNumberBet();
 
@@ -102,9 +103,9 @@ async function startBot() {
         {
           nome: number === 1 ? "vermelho" : "preto",
           seletor: number === 1 ? "div.red" : "div.black",
-          valor: "1",
+          valor: "0.1",
         },
-        { nome: "branco", seletor: "div.white", valor: "0.25" },
+        { nome: "branco", seletor: "div.white", valor: "0.1" },
       ];
       for (let cor of CORES) {
         await apostar(page, cor);
@@ -112,9 +113,10 @@ async function startBot() {
     }
 
     await page.evaluate((inputSelector) => {
-      document.querySelector(inputSelector).value = "";
+      if (document.querySelector(inputSelector)?.value)
+        document.querySelector(inputSelector).value = "";
     }, inputSelector);
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     await page.waitForFunction(
       (selector, expectedText) => {
