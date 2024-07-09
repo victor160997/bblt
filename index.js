@@ -3,6 +3,43 @@ const puppeteer = require("puppeteer");
 // Configurações do bot
 const URL = "https://blaze.com/pt/games/double";
 const APOSTA_VALOR = "0.1"; // Valor da aposta como string
+const CORES = [
+  { nome: "branco", seletor: "div.white", valor: "0.1" },
+];
+
+async function applyFirstStrategy(converted) {
+  if (converted.length < 1) return;
+
+  const lastResult = converted[0];
+
+  if (lastResult.color !== "white") return;
+
+  const lastHour = new Date(lastResult["created_at"]);
+  lastHour.setHours(lastHour.getHours() - 1, lastHour.getMinutes(), 1);
+  const isoLastHour = lastHour.toISOString();
+
+  const now = new Date();
+  const isoNow = now.toISOString();
+  const endpoint = `https://blaze.ac/api/roulette_games/history?startDate=${isoLastHour}&endDate=${isoNow}&page=1`;
+  const res = await fetch(endpoint);
+  const resFormatted = await res.json();
+
+  const values = resFormatted.records.map((x) => {
+    if (x.color === "red") return 1;
+
+    if (x.color === "black") return 2;
+
+    return 0;
+  });
+  const valueBet = values[0];
+
+  if (valueBet === 0) return;
+
+  const betTime = new Date(lastResult["created_at"]);
+  betTime.setMinutes(betTime.getMinutes() + 10, 0);
+
+  CORES.push({ nome: valueBet === 1 ? "red" : "black", seletor: valueBet === 1 ? "div.red" : "div.black", valor: "0.1", when: betTime });
+}
 
 async function fetchData() {
   const startDate = new Date();
@@ -17,27 +54,7 @@ async function fetchData() {
 
   const converted = await res.json();
 
-  return converted;
-}
-
-async function getNumberBet() {
-  const converted = await fetchData();
-
-  const values = converted.records.map((x) => {
-    if (x.color === "red") return 1;
-
-    if (x.color === "black") return 2;
-
-    return 0;
-  });
-
-  const redPercentage = values.filter((x) => x === 1).length;
-  const blackPercentage = values.filter((x) => x === 2).length;
-
-  if (blackPercentage - redPercentage >= 3) return 1;
-  if (redPercentage - blackPercentage >= 3) return 2;
-
-  return null;
+  applyFirstStrategy(converted);
 }
 
 // Função para realizar a aposta
@@ -66,6 +83,7 @@ async function apostar(page, cor) {
   await page.click(confirmarSelector);
   await new Promise((resolve) => setTimeout(resolve, 1000));
   console.log("Aposta confirmada.");
+  CORES = CORES.filter((c) => c.when !== cor.when);
 }
 
 // Função principal
@@ -96,18 +114,12 @@ async function startBot() {
     }, inputSelector);
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    const number = await getNumberBet();
+    await fetchData();
 
-    if (number) {
-      const CORES = [
-        {
-          nome: number === 1 ? "vermelho" : "preto",
-          seletor: number === 1 ? "div.red" : "div.black",
-          valor: "0.1",
-        },
-        { nome: "branco", seletor: "div.white", valor: "0.1" },
-      ];
-      for (let cor of CORES) {
+    for (let cor of CORES) {
+      const now = new Date();
+      const isSameMinute = now.getMinutes() === cor.when.getMinutes();
+      if (isSameMinute) {
         await apostar(page, cor);
       }
     }
